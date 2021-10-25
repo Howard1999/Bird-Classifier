@@ -11,11 +11,19 @@ def _read_image(img_path):
 
 class MyDataset(Dataset):
 
-    def __init__(self, img_dir, transform=transforms.ToTensor(), img_labels=None):
+    def __init__(self, img_dir, transform=transforms.ToTensor(), img_labels=None, val=0.):
         self.img_dir = img_dir
         self.img_list = os.listdir(img_dir)
         self.img_labels = img_labels
         self.transform = transform
+        self.val = val
+        self._val_mode = False
+
+        if not 0. <= self.val <= 1.:
+            raise Exception('[MyDataset]validation ratio should be [0,1)')
+
+        self.train_len = int(len(self.img_list) * (1-self.val))
+        self.val_len = len(self.img_list) - self.train_len
 
         # check all img has label
         if self.img_labels is not None:
@@ -24,14 +32,27 @@ class MyDataset(Dataset):
                     raise Exception('[MyDataset]img_labels is given, but not every image has label: '+img_name)
 
     def __len__(self):
-        return len(self.img_list)
+        return self.train_len if not self.val_mode else self.val_len
 
     def __getitem__(self, index):
+        if self.val_mode:
+            index += self.train_len
+
         _label = self.img_labels[self.img_list[index]] if self.img_labels is not None else None
         _img = _read_image(self.img_dir+'/'+self.img_list[index])
         _img = self.transform(_img)
 
         return _label, _img
+
+    @property
+    def val_mode(self):
+        return self._val_mode
+
+    @val_mode.setter
+    def val_mode(self, new_val):
+        if type(new_val) != bool:
+            raise Exception('[MyDataset]val_mode must be bool type')
+        val_mode = new_val
 
 
 class ImageLabels:
@@ -64,7 +85,7 @@ class ClassTransform: # convert between one hot tensor and class name
                     self.total_size += 1
 
     def to_one_hot(self, cls):
-        if type(cls) == list:
+        if type(cls) == list or type(cls) == tuple:
             one_hot = torch.zeros(len(cls), self.total_size)
             for idx, class_name in enumerate(cls):
                 one_hot[idx][self.cls2order[class_name]] = 1.
@@ -73,7 +94,18 @@ class ClassTransform: # convert between one hot tensor and class name
             one_hot[self.cls2order[cls]] = 1.
         return one_hot
 
+    def to_order(self, cls):
+        if type(cls) == list or type(cls) == tuple:
+            order = []
+            for class_name in cls:
+                order.append(self.cls2order[class_name])
+        else:
+            order = self.cls2order[cls]
+        return order
+
     def to_class_name(self, one_hot: torch.Tensor):
+        if type(one_hot) != torch.Tensor:
+            raise Exception('[ClassTransform]one_hot should be torch.Tensor type')
         shape = one_hot.shape
         if len(shape) == 2 and shape[1] == self.total_size:
             class_name = []
