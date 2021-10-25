@@ -9,21 +9,18 @@ def _read_image(img_path):
     return Image.open(img_path, mode='r').convert('RGB')
 
 
+_TRAINING = 0
+_VALIDATION = 1
+
+
 class MyDataset(Dataset):
 
-    def __init__(self, img_dir, transform=transforms.ToTensor(), img_labels=None, val=0.):
+    def __init__(self, img_dir, transform=transforms.ToTensor(), img_labels=None, mode=_TRAINING, val=0.):
         self.img_dir = img_dir
         self.img_list = os.listdir(img_dir)
         self.img_labels = img_labels
         self.transform = transform
-        self.val = val
-        self._val_mode = False
-
-        if not 0. <= self.val <= 1.:
-            raise Exception('[MyDataset]validation ratio should be [0,1)')
-
-        self.train_len = int(len(self.img_list) * (1-self.val))
-        self.val_len = len(self.img_list) - self.train_len
+        self.mode = mode
 
         # check all img has label
         if self.img_labels is not None:
@@ -31,28 +28,31 @@ class MyDataset(Dataset):
                 if self.img_labels[img_name] is None:
                     raise Exception('[MyDataset]img_labels is given, but not every image has label: '+img_name)
 
+        # check val
+        if not 0. <= val <= 1.:
+            raise Exception('[MyDataset]val should between 0. ~ 1.')
+
+        # mode handle
+        if self.mode == _TRAINING:
+            self._offset = 0
+            self.size = int(len(self.img_list)*(1-val))
+        elif self.mode == _VALIDATION:
+            self._offset = int(len(self.img_list) * (1 - val))
+            self.size = len(self.img_list) - self._offset
+        else:
+            raise Exception('[MyDataset]mode should be 0.TRAINING or VALIDATION')
+
     def __len__(self):
-        return self.train_len if not self.val_mode else self.val_len
+        return self.size
 
     def __getitem__(self, index):
-        if self.val_mode:
-            index += self.train_len
+        index += self._offset
 
         _label = self.img_labels[self.img_list[index]] if self.img_labels is not None else None
         _img = _read_image(self.img_dir+'/'+self.img_list[index])
         _img = self.transform(_img)
 
         return _label, _img
-
-    @property
-    def val_mode(self):
-        return self._val_mode
-
-    @val_mode.setter
-    def val_mode(self, new_val):
-        if type(new_val) != bool:
-            raise Exception('[MyDataset]val_mode must be bool type')
-        val_mode = new_val
 
 
 class ImageLabels:
@@ -118,6 +118,12 @@ class ClassTransform: # convert between one hot tensor and class name
         else:
             raise Exception('[ClassTransform]Tensor Shape Error: '+shape)
         return class_name
+
+
+def get_train_val_dataset(*args, **kwargs):
+    train_dataset = MyDataset(*args, **kwargs, mode=_TRAINING)
+    val_dataset = MyDataset(*args, **kwargs, mode=_VALIDATION)
+    return train_dataset, val_dataset
 
 
 if __name__ == '__main__':
