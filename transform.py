@@ -1,7 +1,7 @@
 from torchvision import transforms
 
 
-INPUT_SIZE = (224, 224)
+INPUT_SIZE = (384, 384)
 
 
 def get_transform():
