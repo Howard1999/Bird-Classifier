@@ -14,11 +14,12 @@ class_transform = ClassTransform(classes_path)
 # load model
 model_path = '../record/v1/baseline'
 model = torch.nn.Sequential(
-    torchvision.models.resnet50(pretrained=False),
+    ViT('B_16_imagenet1k', pretrained=True),
     torch.nn.Linear(1000, class_transform.total_size)
 )
 model = torch.nn.DataParallel(model)
-model.load_state_dict(torch.load(model_path, map_location="cpu"))
+model.load_state_dict(torch.load(model_path, map_location="cuda:0"))
+model.to('cuda:0')
 model.eval()
 
 # image transform
@@ -39,7 +40,7 @@ with open(output_path, 'w') as fp:
     for img_name in test_list:
         image = transform(Image.open(test_folder+img_name))
 
-        y_pred = model(image[None, :])
+        y_pred = model(image[None, :].to('cuda:0'))
         class_name = class_transform.to_class_name(y_pred[0])
 
         fp.write(img_name+' '+class_name+'\n')
