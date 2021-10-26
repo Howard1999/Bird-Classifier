@@ -8,7 +8,8 @@ def show_hist(hist_list, title, legends):
     plt.xlabel('Epoch')
     plt.legend(legends, loc='center right')
     plt.show()
-    
+
+
 def save_hist(hist_list, title, legends):
     plt.title(title)
     for i in range(len(hist_list)):
