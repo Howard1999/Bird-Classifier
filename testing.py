@@ -19,6 +19,7 @@ model = torch.nn.Sequential(
 )
 model = torch.nn.DataParallel(model)
 model.load_state_dict(torch.load(model_path, map_location="cpu"))
+model.eval()
 
 # image transform
 transform = transforms.Compose([
