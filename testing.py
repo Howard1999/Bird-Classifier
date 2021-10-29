@@ -5,16 +5,17 @@ from transform import INPUT_SIZE
 from Dataset import ClassTransform
 from PIL import Image
 from pytorch_pretrained_vit import ViT
+from timm import create_model
 
 
 # class transform
-classes_path = '../datasets/classes.txt'
+classes_path = '/mnt/classes.txt'
 class_transform = ClassTransform(classes_path)
 
 # load model
-model_path = '../record/v1/baseline'
+model_path = '/mnt/baseline'
 model = torch.nn.Sequential(
-    ViT('B_16_imagenet1k', pretrained=True),
+    create_model('swin_large_patch4_window12_384', pretrained=True),
     torch.nn.Linear(1000, class_transform.total_size)
 )
 model = torch.nn.DataParallel(model)
@@ -29,14 +30,14 @@ transform = transforms.Compose([
 ])
 
 # read test order file
-test_order_path = '../datasets/testing_img_order.txt'
+test_order_path = '/mnt/testing_img_order.txt'
 with open(test_order_path) as fp:
     test_list = fp.read().splitlines()
 
 # generate prediction file
-output_path = './predict.txt'
+output_path = './answer.txt'
 with open(output_path, 'w') as fp:
-    test_folder = '../datasets/testing_images/'
+    test_folder = '/mnt/testing_images/'
     for img_name in test_list:
         image = transform(Image.open(test_folder+img_name))
 
